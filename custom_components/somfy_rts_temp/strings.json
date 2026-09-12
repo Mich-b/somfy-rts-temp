@@ -1,0 +1,109 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Select transmitter",
+        "data": {
+          "transmitter_entity": "Transmitter"
+        }
+      },
+      "setup_choice": {
+        "title": "How do you want to set this up?",
+        "menu_options": {
+          "configure": "I already have an address and rolling code",
+          "pair_intro": "Pair a new motor (I can long-press its reset button)"
+        }
+      },
+      "configure": {
+        "title": "Enter your remote's details",
+        "description": "Enter the address and rolling code captured from an existing remote (e.g. via `decode_capture.py`).",
+        "data": {
+          "name": "Name",
+          "address": "Address (hex)",
+          "rolling_code": "Starting rolling code"
+        }
+      },
+      "pair_intro": {
+        "title": "Before you start",
+        "description": "This registers Home Assistant as a brand-new remote for this motor, and walks through setting its travel limits. No captured address or rolling code needed - we'll invent a new one from scratch.\n\n**Right now:** long-press the reset/PROG button on the motor itself (or hold PROG on a remote already paired to it) until it jogs briefly. That puts it into pairing mode.\n\nOnce it's jogged, enter a name for this blind and continue.",
+        "data": {
+          "name": "Name"
+        }
+      },
+      "pair_register": {
+        "title": "Registering with the motor",
+        "description": "Sending the Up+Down signal now - the blind should briefly jog up and down as confirmation that it's registering this new remote.\n\nDidn't jog? Make sure it's still in pairing mode (redo the long reset-button press if needed), then choose Retry."
+      },
+      "pair_top": {
+        "title": "Set the TOP position",
+        "description": "Use Up/Down to jog the blind to the position you want as its fully-open (top) limit. When it's where you want it, choose Confirm.",
+        "data": {
+          "action": "Action"
+        }
+      },
+      "pair_bottom": {
+        "title": "Set the BOTTOM position",
+        "description": "Sending My+Down - the blind should start moving down. Use Down to keep it moving, Up if you overshoot, and choose Stop exactly when it reaches the position you want as its fully-closed (bottom) limit.",
+        "data": {
+          "action": "Action"
+        }
+      },
+      "pair_top_confirm": {
+        "title": "Confirming the TOP position",
+        "description": "Sending My+Up - the blind should run back up on its own to the top limit you set. Once it's reached the top and stopped, choose Continue. If nothing happened, choose Retry.",
+        "data": {
+          "action": "Action"
+        }
+      },
+      "pair_long_my": {
+        "title": "Long-press My",
+        "description": "Sending a long My/Stop press (6 total frames) to save the limits you just set - the blind should briefly jog up and down as confirmation. If it didn't, choose Retry, otherwise Continue.",
+        "data": {
+          "action": "Action"
+        }
+      },
+      "pair_prog": {
+        "title": "Finishing up",
+        "description": "Sending Prog - this saves the setup and registers Home Assistant as an authorized remote for this motor. The blind should briefly jog up and down as confirmation. If it didn't, choose Retry, otherwise Continue to finish.",
+        "data": {
+          "action": "Action"
+        }
+      }
+    },
+    "abort": {
+      "no_transmitters": "No RF transmitter entities were found.",
+      "no_compatible_transmitters": "No transmitter supports the frequency/modulation Somfy RTS needs."
+    },
+    "error": {
+      "invalid_hex": "Not a valid hexadecimal value.",
+      "address_out_of_range": "Address must be between 000000 and FFFFFF."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Somfy RTS options",
+        "data": {
+          "transmitter_entity": "Transmitter",
+          "rolling_code": "Rolling code"
+        }
+      }
+    }
+  },
+  "services": {
+    "send_button": {
+      "name": "Send raw button",
+      "description": "Send a raw or combined Somfy RTS button code, for motor setup/limit-programming sequences that plain open/close/stop can't express.",
+      "fields": {
+        "button": {
+          "name": "Button",
+          "description": "Which (possibly combined) button code to send."
+        },
+        "frame_repeats": {
+          "name": "Frame repeats",
+          "description": "Additional repeat frames within this one transmission (same rolling code). 0 = a single frame; raise to simulate a longer hold."
+        }
+      }
+    }
+  }
+}

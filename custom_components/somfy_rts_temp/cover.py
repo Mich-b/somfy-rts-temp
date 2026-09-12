@@ -3,6 +3,7 @@
 import logging
 from typing import Any
 
+import voluptuous as vol
 from homeassistant.components.cover import (
     CoverEntity,
     CoverEntityFeature,
@@ -14,7 +15,7 @@ from homeassistant.const import (
     STATE_UNAVAILABLE,
 )
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import entity_platform, entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
@@ -24,9 +25,21 @@ from rf_protocols.commands.somfy_rts import SomfyRTSCommand
 
 from .const import CONF_ADDRESS, CONF_TRANSMITTER, DOMAIN
 from .entity import SomfyRTSConfigEntry
+from .programming import BUTTON_CODES
 
 _LOGGER = logging.getLogger(__name__)
 PARALLEL_UPDATES = 1
+
+SERVICE_SEND_BUTTON = "send_button"
+
+_PROGRAMMING_BUTTONS = ("up_down", "my_down", "my", "my_up", "prog")
+
+_SEND_BUTTON_SCHEMA = {
+    vol.Required("button"): vol.In(_PROGRAMMING_BUTTONS),
+    vol.Optional("frame_repeats", default=0): vol.All(
+        vol.Coerce(int), vol.Range(min=0, max=50)
+    ),
+}
 
 
 async def async_setup_entry(
@@ -36,6 +49,13 @@ async def async_setup_entry(
 ) -> None:
     """Set up the Somfy RTS cover platform."""
     async_add_entities([SomfyRTSCover(config_entry)])
+
+    platform = entity_platform.async_get_current_platform()
+    platform.async_register_entity_service(
+        SERVICE_SEND_BUTTON,
+        _SEND_BUTTON_SCHEMA,
+        "async_send_button",
+    )
 
 
 class SomfyRTSCover(CoverEntity, RestoreEntity):
@@ -113,7 +133,7 @@ class SomfyRTSCover(CoverEntity, RestoreEntity):
         )
 
     async def _async_send_command(
-        self, button: SomfyRTSButton, *, frame_repeats: int = 0
+        self, button: int, *, frame_repeats: int = 0
     ) -> None:
         """Transmit the command and persist the rolling code after success."""
         data = self._entry.runtime_data
@@ -146,3 +166,14 @@ class SomfyRTSCover(CoverEntity, RestoreEntity):
     async def async_stop_cover(self, **kwargs: Any) -> None:
         """Stop the cover."""
         await self._async_send_command(SomfyRTSButton.MY)
+
+    async def async_send_button(self, button: str, frame_repeats: int = 0) -> None:
+        """Send a raw/combined button code for motor setup and limit
+        programming (e.g. up+down, my+down, my+up, prog) that plain
+        open/close/stop can't express. For a "long press", raise
+        frame_repeats (e.g. 5 for 6 total frames) rather than calling this
+        repeatedly, so it stays one rolling-code transmission.
+        """
+        await self._async_send_command(
+            BUTTON_CODES[button], frame_repeats=frame_repeats
+        )

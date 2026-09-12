@@ -1,0 +1,43 @@
+send_button:
+  name: Send raw button
+  description: >-
+    Send a raw or combined Somfy RTS button code to a cover entity, for
+    motor setup/limit-programming sequences that plain open/close/stop
+    can't express (e.g. up+down, my+down, my+up, prog). Advanced/expert
+    use only - sending these to an already-configured motor can re-trigger
+    its programming mode.
+  target:
+    entity:
+      domain: cover
+  fields:
+    button:
+      name: Button
+      description: Which (possibly combined) button code to send.
+      required: true
+      selector:
+        select:
+          options:
+            - label: "Up + Down"
+              value: up_down
+            - label: "My + Down"
+              value: my_down
+            - label: "My / Stop"
+              value: my
+            - label: "My + Up"
+              value: my_up
+            - label: "Prog"
+              value: prog
+    frame_repeats:
+      name: Frame repeats
+      description: >-
+        Additional repeat frames to send within this one transmission (same
+        rolling code throughout). 0 = a single frame, like a quick tap.
+        Raise this to simulate a longer hold - e.g. 5 for a "long press"
+        of 6 total frames - instead of calling the service repeatedly.
+      required: false
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 50
+          mode: box
