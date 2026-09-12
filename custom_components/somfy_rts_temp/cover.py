@@ -112,7 +112,7 @@ class SomfyRTSCover(CoverEntity, RestoreEntity):
         )
 
     async def _async_send_command(
-        self, button: SomfyRTSButton, *, frame_repeats: int = 3
+        self, button: SomfyRTSButton, *, frame_repeats: int = 0
     ) -> None:
         """Transmit the command and persist the rolling code/key after success."""
         data = self._entry.runtime_data
