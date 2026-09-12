@@ -15,15 +15,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.components.radio_frequency import async_get_transmitters
 from homeassistant.helpers.selector import EntitySelector, EntitySelectorConfig
 
-from .const import (
-    CONF_ADDRESS,
-    CONF_COUNTER,
-    CONF_KEY,
-    CONF_TRANSMITTER,
-    DEFAULT_NAME,
-    DOMAIN,
-    FREQUENCY,
-)
+from .const import CONF_ADDRESS, CONF_COUNTER, CONF_TRANSMITTER, DEFAULT_NAME, DOMAIN, FREQUENCY
 
 
 class SomfyRTSConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -82,14 +74,6 @@ class SomfyRTSConfigFlow(ConfigFlow, domain=DOMAIN):
                 if not (0 <= address <= 0xFFFFFF):
                     errors[CONF_ADDRESS] = "address_out_of_range"
 
-            try:
-                key = int(user_input[CONF_KEY], 16)
-            except ValueError:
-                errors[CONF_KEY] = "invalid_hex"
-            else:
-                if not (0 <= key <= 0xFF):
-                    errors[CONF_KEY] = "key_out_of_range"
-
             if not errors:
                 return self.async_create_entry(
                     title=user_input.get("name", DEFAULT_NAME),
@@ -97,7 +81,6 @@ class SomfyRTSConfigFlow(ConfigFlow, domain=DOMAIN):
                         CONF_TRANSMITTER: self._transmitter,
                         CONF_ADDRESS: address,
                         CONF_COUNTER: int(user_input[CONF_COUNTER]),
-                        CONF_KEY: key,
                     },
                 )
 
@@ -108,7 +91,6 @@ class SomfyRTSConfigFlow(ConfigFlow, domain=DOMAIN):
                     vol.Required("name", default=DEFAULT_NAME): str,
                     vol.Required(CONF_ADDRESS, default="970229"): str,
                     vol.Required(CONF_COUNTER, default=0): int,
-                    vol.Required(CONF_KEY, default="A7"): str,
                 }
             ),
             errors=errors,
@@ -128,26 +110,9 @@ class SomfyRTSOptionsFlow(OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Manage options: update transmitter, counter, and key."""
-        errors: dict[str, str] = {}
-
+        """Manage options: update transmitter and counter."""
         if user_input is not None:
-            try:
-                key = int(user_input[CONF_KEY], 16)
-            except ValueError:
-                errors[CONF_KEY] = "invalid_hex"
-            else:
-                if not (0 <= key <= 0xFF):
-                    errors[CONF_KEY] = "key_out_of_range"
-
-            if not errors:
-                return self.async_create_entry(
-                    data={
-                        CONF_TRANSMITTER: user_input[CONF_TRANSMITTER],
-                        CONF_COUNTER: user_input[CONF_COUNTER],
-                        CONF_KEY: key,
-                    }
-                )
+            return self.async_create_entry(data=user_input)
 
         return self.async_show_form(
             step_id="init",
@@ -161,13 +126,6 @@ class SomfyRTSOptionsFlow(OptionsFlow):
                         CONF_COUNTER,
                         default=self.config_entry.data.get(CONF_COUNTER, 0),
                     ): int,
-                    vol.Required(
-                        CONF_KEY,
-                        default=format(
-                            self.config_entry.data.get(CONF_KEY, 0xA7), "02X"
-                        ),
-                    ): str,
                 }
             ),
-            errors=errors,
         )
