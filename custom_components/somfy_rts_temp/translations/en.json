@@ -49,11 +49,13 @@
       },
       "pair_bottom_jog": {
         "title": "Set the BOTTOM position",
-        "description": "My+Down was just sent, so the blind should be moving down on its own. Use Down to keep it moving, Up if you overshoot, and choose Stop exactly when it reaches the position you want as its fully-closed (bottom) limit.",
+        "description": "My+Down was just sent, so the blind should be moving down on its own. Didn't move? Choose Resend. Choose Stop exactly when it reaches roughly the position you want, then fine-tune with Down/Up if needed - Stop just halts the motor, it doesn't lock anything in. Once you're happy with where it stopped, choose Confirm.",
         "menu_options": {
+          "pair_bottom_resend": "🔁 Resend My+Down",
           "pair_bottom_down": "⬇️ Down",
           "pair_bottom_up": "⬆️ Up - I overshot",
-          "pair_bottom_stop": "🛑 Stop - this is my BOTTOM position"
+          "pair_bottom_stop": "🛑 Stop",
+          "pair_bottom_confirm": "✅ Confirm - this is my BOTTOM position"
         }
       },
       "pair_top_confirm": {

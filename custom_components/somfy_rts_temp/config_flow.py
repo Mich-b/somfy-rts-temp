@@ -210,11 +210,20 @@ class SomfyRTSConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_show_menu(
             step_id="pair_bottom_jog",
             menu_options=[
+                "pair_bottom_resend",
                 "pair_bottom_down",
                 "pair_bottom_up",
                 "pair_bottom_stop",
+                "pair_bottom_confirm",
             ],
         )
+
+    async def async_step_pair_bottom_resend(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Resend My+Down, e.g. if the blind never started moving."""
+        await self._async_send("my_down")
+        return await self.async_step_pair_bottom_jog()
 
     async def async_step_pair_bottom_down(
         self, user_input: dict[str, Any] | None = None
@@ -233,8 +242,14 @@ class SomfyRTSConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_pair_bottom_stop(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Stop at the bottom limit and move on."""
+        """Stop the motor, then return to the jog menu to fine-tune or confirm."""
         await self._async_send("my")
+        return await self.async_step_pair_bottom_jog()
+
+    async def async_step_pair_bottom_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Move on - assumes the motor is already stopped where you want it."""
         return await self.async_step_pair_top_confirm()
 
     async def async_step_pair_top_confirm(
