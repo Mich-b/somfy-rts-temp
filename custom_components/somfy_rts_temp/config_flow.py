@@ -15,55 +15,10 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.components.radio_frequency import async_get_transmitters
-from homeassistant.helpers.selector import (
-    EntitySelector,
-    EntitySelectorConfig,
-    SelectOptionDict,
-    SelectSelector,
-    SelectSelectorConfig,
-    SelectSelectorMode,
-)
+from homeassistant.helpers.selector import EntitySelector, EntitySelectorConfig
 
 from .const import CONF_ADDRESS, CONF_COUNTER, CONF_TRANSMITTER, DEFAULT_NAME, DOMAIN, FREQUENCY
 from .programming import async_send_programming_button
-
-
-def _action_schema(*options: tuple[str, str], default: str) -> vol.Schema:
-    """Build a single-field labeled-choice schema for a wizard step."""
-    return vol.Schema(
-        {
-            vol.Required("action", default=default): SelectSelector(
-                SelectSelectorConfig(
-                    options=[
-                        SelectOptionDict(value=value, label=label)
-                        for value, label in options
-                    ],
-                    mode=SelectSelectorMode.LIST,
-                )
-            )
-        }
-    )
-
-
-_CONTINUE_SCHEMA = _action_schema(
-    ("continue", "Continue"),
-    ("retry", "Retry - resend the signal"),
-    default="continue",
-)
-
-_JOG_TOP_SCHEMA = _action_schema(
-    ("up", "Up"),
-    ("down", "Down"),
-    ("confirm", "Confirm - this is my TOP position"),
-    default="up",
-)
-
-_JOG_BOTTOM_SCHEMA = _action_schema(
-    ("down", "Down"),
-    ("up", "Up - I overshot"),
-    ("stop", "Stop - this is my BOTTOM position"),
-    default="down",
-)
 
 
 class SomfyRTSConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -115,10 +70,7 @@ class SomfyRTSConfigFlow(ConfigFlow, domain=DOMAIN):
         """
         return self.async_show_menu(
             step_id="setup_choice",
-            menu_options={
-                "configure": "I already have an address and rolling code",
-                "pair_intro": "Pair a new motor (I can long-press its reset button)",
-            },
+            menu_options=["configure", "pair_intro"],
         )
 
     async def async_step_configure(
@@ -164,6 +116,25 @@ class SomfyRTSConfigFlow(ConfigFlow, domain=DOMAIN):
     # motor's travel limits, mirroring a captured real pairing sequence:
     #   up+down -> jog to TOP -> my+down -> jog/stop at BOTTOM
     #   -> my+up (back to TOP) -> long-press my -> prog
+    #
+    # Every step here is a menu: each option is its own async_step_* that
+    # sends one command and either loops back to the same menu (jogging,
+    # retry) or moves on to the next step. Retry/re-jog options simply
+    # point back at the step that sends the command, so re-entering it
+    # re-sends rather than needing separate branching logic.
+
+    def _generate_unique_address(self) -> int:
+        """Pick a random address not already used by an existing entry."""
+        existing = {
+            entry.data[CONF_ADDRESS]
+            for entry in self.hass.config_entries.async_entries(DOMAIN)
+            if CONF_ADDRESS in entry.data
+        }
+        for _ in range(100):
+            address = random.randint(0, 0xFFFFFF)
+            if address not in existing:
+                return address
+        raise HomeAssistantError("Could not generate a unique address")
 
     async def _async_send(self, button: str, *, frame_repeats: int = 0) -> None:
         """Send one programming-sequence command with the next rolling code."""
@@ -183,7 +154,7 @@ class SomfyRTSConfigFlow(ConfigFlow, domain=DOMAIN):
         """Explain the physical first step and collect a name."""
         if user_input is not None:
             self._pair_name = user_input.get("name", DEFAULT_NAME)
-            self._pair_address = random.randint(0, 0xFFFFFF)
+            self._pair_address = self._generate_unique_address()
             self._pair_rolling_code = 0
             return await self.async_step_pair_register()
 
@@ -196,86 +167,110 @@ class SomfyRTSConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Send Up+Down to register this new remote with the motor."""
-        if user_input is None:
-            await self._async_send("up_down")
-            return self.async_show_form(
-                step_id="pair_register", data_schema=_CONTINUE_SCHEMA
-            )
-
-        if user_input["action"] == "retry":
-            await self._async_send("up_down")
-            return self.async_show_form(
-                step_id="pair_register", data_schema=_CONTINUE_SCHEMA
-            )
-
-        return await self.async_step_pair_top()
+        await self._async_send("up_down")
+        return self.async_show_menu(
+            step_id="pair_register",
+            menu_options=["pair_top", "pair_register"],
+        )
 
     async def async_step_pair_top(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Jog with Up/Down until the blind is at the desired top position."""
-        if user_input is not None:
-            action = user_input["action"]
-            if action == "confirm":
-                return await self.async_step_pair_bottom()
-            await self._async_send(action)  # "up" or "down"
+        return self.async_show_menu(
+            step_id="pair_top",
+            menu_options=["pair_top_up", "pair_top_down", "pair_bottom"],
+        )
 
-        return self.async_show_form(step_id="pair_top", data_schema=_JOG_TOP_SCHEMA)
+    async def async_step_pair_top_up(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Jog up once, then return to the top-jog menu."""
+        await self._async_send("up")
+        return await self.async_step_pair_top()
+
+    async def async_step_pair_top_down(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Jog down once, then return to the top-jog menu."""
+        await self._async_send("down")
+        return await self.async_step_pair_top()
 
     async def async_step_pair_bottom(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Send My+Down, then jog/stop at the desired bottom position."""
-        if user_input is None:
-            await self._async_send("my_down")
-            return self.async_show_form(
-                step_id="pair_bottom", data_schema=_JOG_BOTTOM_SCHEMA
-            )
+        """Send My+Down once, then hand off to the interactive jog menu."""
+        await self._async_send("my_down")
+        return await self.async_step_pair_bottom_jog()
 
-        action = user_input["action"]
-        if action == "stop":
-            await self._async_send("my")
-            return await self.async_step_pair_top_confirm()
-
-        await self._async_send(action)  # "down" or "up"
-        return self.async_show_form(
-            step_id="pair_bottom", data_schema=_JOG_BOTTOM_SCHEMA
+    async def async_step_pair_bottom_jog(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Jog/stop at the desired bottom position."""
+        return self.async_show_menu(
+            step_id="pair_bottom_jog",
+            menu_options=[
+                "pair_bottom_down",
+                "pair_bottom_up",
+                "pair_bottom_stop",
+            ],
         )
+
+    async def async_step_pair_bottom_down(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Jog down once, then return to the bottom-jog menu."""
+        await self._async_send("down")
+        return await self.async_step_pair_bottom_jog()
+
+    async def async_step_pair_bottom_up(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Jog up once (overshoot correction), then return to the menu."""
+        await self._async_send("up")
+        return await self.async_step_pair_bottom_jog()
+
+    async def async_step_pair_bottom_stop(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Stop at the bottom limit and move on."""
+        await self._async_send("my")
+        return await self.async_step_pair_top_confirm()
 
     async def async_step_pair_top_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Send My+Up to run back to the top and confirm the limit."""
-        if user_input is None or user_input["action"] == "retry":
-            await self._async_send("my_up")
-            return self.async_show_form(
-                step_id="pair_top_confirm", data_schema=_CONTINUE_SCHEMA
-            )
-
-        return await self.async_step_pair_long_my()
+        await self._async_send("my_up")
+        return self.async_show_menu(
+            step_id="pair_top_confirm",
+            menu_options=["pair_long_my", "pair_top_confirm"],
+        )
 
     async def async_step_pair_long_my(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Send a long My/Stop press (6 total frames) to save the limits."""
-        if user_input is None or user_input["action"] == "retry":
-            await self._async_send("my", frame_repeats=5)
-            return self.async_show_form(
-                step_id="pair_long_my", data_schema=_CONTINUE_SCHEMA
-            )
-
-        return await self.async_step_pair_prog()
+        await self._async_send("my", frame_repeats=5)
+        return self.async_show_menu(
+            step_id="pair_long_my",
+            menu_options=["pair_prog", "pair_long_my"],
+        )
 
     async def async_step_pair_prog(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Send Prog to finish registering this remote, then create the entry."""
-        if user_input is None or user_input["action"] == "retry":
-            await self._async_send("prog")
-            return self.async_show_form(
-                step_id="pair_prog", data_schema=_CONTINUE_SCHEMA
-            )
+        """Send Prog to finish registering this remote."""
+        await self._async_send("prog")
+        return self.async_show_menu(
+            step_id="pair_prog",
+            menu_options=["pair_finish", "pair_prog"],
+        )
 
+    async def async_step_pair_finish(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Create the entry with whatever rolling code the sequence ended on."""
         return self.async_create_entry(
             title=self._pair_name,
             data={

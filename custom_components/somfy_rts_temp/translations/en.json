@@ -11,7 +11,7 @@
         "title": "How do you want to set this up?",
         "menu_options": {
           "configure": "I already have an address and rolling code",
-          "pair_intro": "Pair a new motor (I can long-press its reset button)"
+          "pair_intro": "Pair a new motor"
         }
       },
       "configure": {
@@ -32,41 +32,52 @@
       },
       "pair_register": {
         "title": "Registering with the motor",
-        "description": "Sending the Up+Down signal now - the blind should briefly jog up and down as confirmation that it's registering this new remote.\n\nDidn't jog? Make sure it's still in pairing mode (redo the long reset-button press if needed), then choose Retry."
+        "description": "Sending the Up+Down signal now. The blind should briefly jog up and down as confirmation that it's registering this new remote.\n\nDidn't jog? Make sure it's still in pairing mode (redo the long reset-button press if needed), then choose Retry.",
+        "menu_options": {
+          "pair_top": "Continue",
+          "pair_register": "Retry - resend the signal"
+        }
       },
       "pair_top": {
         "title": "Set the TOP position",
-        "description": "Use Up/Down to jog the blind to the position you want as its fully-open (top) limit. When it's where you want it, choose Confirm.",
-        "data": {
-          "action": "Action"
+        "description": "Use Up/Down to jog the blind to the position you want as its fully-open (top) limit. Each press sends one command, so use it like a real remote's buttons. When it's where you want it, choose Confirm.",
+        "menu_options": {
+          "pair_top_up": "⬆️ Up",
+          "pair_top_down": "⬇️ Down",
+          "pair_bottom": "✅ Confirm - this is my TOP position"
         }
       },
-      "pair_bottom": {
+      "pair_bottom_jog": {
         "title": "Set the BOTTOM position",
-        "description": "Sending My+Down - the blind should start moving down. Use Down to keep it moving, Up if you overshoot, and choose Stop exactly when it reaches the position you want as its fully-closed (bottom) limit.",
-        "data": {
-          "action": "Action"
+        "description": "My+Down was just sent, so the blind should be moving down on its own. Use Down to keep it moving, Up if you overshoot, and choose Stop exactly when it reaches the position you want as its fully-closed (bottom) limit.",
+        "menu_options": {
+          "pair_bottom_down": "⬇️ Down",
+          "pair_bottom_up": "⬆️ Up - I overshot",
+          "pair_bottom_stop": "🛑 Stop - this is my BOTTOM position"
         }
       },
       "pair_top_confirm": {
         "title": "Confirming the TOP position",
-        "description": "Sending My+Up - the blind should run back up on its own to the top limit you set. Once it's reached the top and stopped, choose Continue. If nothing happened, choose Retry.",
-        "data": {
-          "action": "Action"
+        "description": "Sending My+Up. The blind should run back up on its own to the top limit you set. Once it's reached the top and stopped, choose Continue. If nothing happened, choose Retry.",
+        "menu_options": {
+          "pair_long_my": "Continue",
+          "pair_top_confirm": "Retry - resend the signal"
         }
       },
       "pair_long_my": {
         "title": "Long-press My",
-        "description": "Sending a long My/Stop press (6 total frames) to save the limits you just set - the blind should briefly jog up and down as confirmation. If it didn't, choose Retry, otherwise Continue.",
-        "data": {
-          "action": "Action"
+        "description": "Sending a long My/Stop press (6 total frames) to save the limits you just set. The blind should briefly jog up and down as confirmation. If it didn't, choose Retry, otherwise Continue.",
+        "menu_options": {
+          "pair_prog": "Continue",
+          "pair_long_my": "Retry - resend the signal"
         }
       },
       "pair_prog": {
         "title": "Finishing up",
-        "description": "Sending Prog - this saves the setup and registers Home Assistant as an authorized remote for this motor. The blind should briefly jog up and down as confirmation. If it didn't, choose Retry, otherwise Continue to finish.",
-        "data": {
-          "action": "Action"
+        "description": "Sending Prog. This saves the setup and registers Home Assistant as an authorized remote for this motor. The blind should briefly jog up and down as confirmation. If it didn't, choose Retry, otherwise Continue to finish.",
+        "menu_options": {
+          "pair_finish": "Continue - finish setup",
+          "pair_prog": "Retry - resend the signal"
         }
       }
     },
