@@ -3,9 +3,6 @@
 import logging
 from typing import Any
 
-from rf_protocols.codes.somfy.rts import SomfyRTSButton
-from rf_protocols.commands.somfy_rts import SomfyRTSCommand
-
 from homeassistant.components.cover import (
     CoverEntity,
     CoverEntityFeature,
@@ -23,6 +20,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.restore_state import RestoreEntity
 
+from .command import SomfyRTSButton, SomfyRTSCommand
 from .const import CONF_ADDRESS, CONF_TRANSMITTER, DOMAIN
 from .entity import SomfyRTSConfigEntry
 
@@ -116,21 +114,26 @@ class SomfyRTSCover(CoverEntity, RestoreEntity):
     async def _async_send_command(
         self, button: SomfyRTSButton, *, frame_repeats: int = 3
     ) -> None:
-        """Transmit the command and persist the rolling code after success."""
+        """Transmit the command and persist the rolling code/key after success."""
         data = self._entry.runtime_data
         async with data.lock:
             rolling_code = data.rolling_code + 1
+            key = (data.key + 1) & 0xFF
             command = SomfyRTSCommand(
                 address=self._address,
                 rolling_code=rolling_code,
                 button=button,
+                key=key,
                 frame_repeats=frame_repeats,
             )
             await async_send_command(
                 self.hass, self._transmitter, command, context=self._context
             )
             data.rolling_code = rolling_code
-            await data.store.async_save({"rolling_code": data.rolling_code})
+            data.key = key
+            await data.store.async_save(
+                {"rolling_code": data.rolling_code, "key": data.key}
+            )
 
     async def async_open_cover(self, **kwargs: Any) -> None:
         """Open the cover."""

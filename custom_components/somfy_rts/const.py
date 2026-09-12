@@ -6,6 +6,7 @@ DOMAIN: Final = "somfy_rts"
 
 CONF_ADDRESS: Final = "address"
 CONF_COUNTER: Final = "rolling_code"
+CONF_KEY: Final = "key"
 CONF_TRANSMITTER: Final = "transmitter_entity"
 
 STORAGE_VERSION: Final = 1
