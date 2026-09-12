@@ -2,7 +2,7 @@
 
 from typing import Final
 
-DOMAIN: Final = "somfy_rts"
+DOMAIN: Final = "somfy_rts_temp"
 
 CONF_ADDRESS: Final = "address"
 CONF_COUNTER: Final = "rolling_code"

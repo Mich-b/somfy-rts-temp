@@ -11,5 +11,5 @@
     "documentation": "https://github.com/Mich-b/somfy-rts-temp",
     "iot_class": "assumed_state",
     "issue_tracker": "https://github.com/Mich-b/somfy-rts-temp/issues",
-    "version": "0.1.2"
+    "version": "0.1.3"
 }
