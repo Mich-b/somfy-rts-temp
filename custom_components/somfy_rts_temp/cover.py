@@ -133,9 +133,15 @@ class SomfyRTSCover(CoverEntity, RestoreEntity):
         )
 
     async def _async_send_command(
-        self, button: int, *, frame_repeats: int = 0
+        self, button: int, *, frame_repeats: int = 1
     ) -> None:
-        """Transmit the command and persist the rolling code after success."""
+        """Transmit the command and persist the rolling code after success.
+
+        frame_repeats defaults to 1 (2 total frames, same rolling code) to
+        match the real remote's own observed behavior - a single frame had
+        too little redundancy against occasional dropped RF frames, while
+        several caused incomplete travel on this motor.
+        """
         data = self._entry.runtime_data
         async with data.lock:
             rolling_code = data.rolling_code + 1
