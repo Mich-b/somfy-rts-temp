@@ -133,14 +133,18 @@ class SomfyRTSCover(CoverEntity, RestoreEntity):
         )
 
     async def _async_send_command(
-        self, button: int, *, frame_repeats: int = 1
+        self, button: int, *, frame_repeats: int = 0, retransmits: int = 2
     ) -> None:
         """Transmit the command and persist the rolling code after success.
 
-        frame_repeats defaults to 1 (2 total frames, same rolling code) to
-        match the real remote's own observed behavior - a single frame had
-        too little redundancy against occasional dropped RF frames, while
-        several caused incomplete travel on this motor.
+        frame_repeats=0 (a single frame, no internal gap) is the only value
+        confirmed reliable on this hardware - any internal gap (frame_repeats
+        1 or 3) caused problems, seemingly in the CC1101/ESPHome TX chain
+        rather than anything Somfy-protocol-related. For redundancy against
+        occasional dropped frames, retransmits instead sends this same,
+        single-frame, same-rolling-code command as several separate clean
+        transmissions (like a real remote's repeats, just without the
+        internal gap this hardware seems to dislike).
         """
         data = self._entry.runtime_data
         async with data.lock:
@@ -151,9 +155,10 @@ class SomfyRTSCover(CoverEntity, RestoreEntity):
                 button=button,
                 frame_repeats=frame_repeats,
             )
-            await async_send_command(
-                self.hass, self._transmitter, command, context=self._context
-            )
+            for _ in range(retransmits):
+                await async_send_command(
+                    self.hass, self._transmitter, command, context=self._context
+                )
             data.rolling_code = rolling_code
             await data.store.async_save({"rolling_code": data.rolling_code})
 
@@ -179,7 +184,11 @@ class SomfyRTSCover(CoverEntity, RestoreEntity):
         open/close/stop can't express. For a "long press", raise
         frame_repeats (e.g. 5 for 6 total frames) rather than calling this
         repeatedly, so it stays one rolling-code transmission.
+
+        Sent once (retransmits=1) - unlike normal open/close/stop, this is
+        used for the programming/pairing sequence, which already works
+        reliably and shouldn't be changed.
         """
         await self._async_send_command(
-            BUTTON_CODES[button], frame_repeats=frame_repeats
+            BUTTON_CODES[button], frame_repeats=frame_repeats, retransmits=1
         )
