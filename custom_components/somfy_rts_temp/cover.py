@@ -1,6 +1,5 @@
 """Cover platform for Somfy RTS."""
 
-import asyncio
 import logging
 from typing import Any
 
@@ -134,29 +133,9 @@ class SomfyRTSCover(CoverEntity, RestoreEntity):
         )
 
     async def _async_send_command(
-        self,
-        button: int,
-        *,
-        frame_repeats: int = 0,
-        retransmits: int = 2,
-        retransmit_delay: float = 0.5,
+        self, button: int, *, frame_repeats: int = 0
     ) -> None:
-        """Transmit the command and persist the rolling code after success.
-
-        frame_repeats=0 (a single frame, no internal gap) is the only value
-        confirmed reliable on this hardware - any internal gap (frame_repeats
-        1 or 3) caused problems, seemingly in the CC1101/ESPHome TX chain
-        rather than anything Somfy-protocol-related. For redundancy against
-        occasional dropped frames, retransmits instead sends this same,
-        single-frame, same-rolling-code command as several separate
-        transmissions - but back-to-back async_send_command() calls have no
-        guaranteed gap between them (we don't actually know whether it
-        blocks until the RF waveform finishes playing on the device, or
-        returns as soon as the transmit request is acknowledged), unlike a
-        physical double-press which is naturally spaced by human reaction
-        time. retransmit_delay adds an explicit pause between sends so we
-        aren't relying on that being true.
-        """
+        """Transmit the command and persist the rolling code after success."""
         data = self._entry.runtime_data
         async with data.lock:
             rolling_code = data.rolling_code + 1
@@ -166,12 +145,9 @@ class SomfyRTSCover(CoverEntity, RestoreEntity):
                 button=button,
                 frame_repeats=frame_repeats,
             )
-            for i in range(retransmits):
-                if i > 0:
-                    await asyncio.sleep(retransmit_delay)
-                await async_send_command(
-                    self.hass, self._transmitter, command, context=self._context
-                )
+            await async_send_command(
+                self.hass, self._transmitter, command, context=self._context
+            )
             data.rolling_code = rolling_code
             await data.store.async_save({"rolling_code": data.rolling_code})
 
@@ -197,11 +173,7 @@ class SomfyRTSCover(CoverEntity, RestoreEntity):
         open/close/stop can't express. For a "long press", raise
         frame_repeats (e.g. 5 for 6 total frames) rather than calling this
         repeatedly, so it stays one rolling-code transmission.
-
-        Sent once (retransmits=1) - unlike normal open/close/stop, this is
-        used for the programming/pairing sequence, which already works
-        reliably and shouldn't be changed.
         """
         await self._async_send_command(
-            BUTTON_CODES[button], frame_repeats=frame_repeats, retransmits=1
+            BUTTON_CODES[button], frame_repeats=frame_repeats
         )
