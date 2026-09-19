@@ -1,5 +1,6 @@
 """Cover platform for Somfy RTS."""
 
+import asyncio
 import logging
 from typing import Any
 
@@ -133,7 +134,12 @@ class SomfyRTSCover(CoverEntity, RestoreEntity):
         )
 
     async def _async_send_command(
-        self, button: int, *, frame_repeats: int = 0, retransmits: int = 2
+        self,
+        button: int,
+        *,
+        frame_repeats: int = 0,
+        retransmits: int = 2,
+        retransmit_delay: float = 0.5,
     ) -> None:
         """Transmit the command and persist the rolling code after success.
 
@@ -142,9 +148,14 @@ class SomfyRTSCover(CoverEntity, RestoreEntity):
         1 or 3) caused problems, seemingly in the CC1101/ESPHome TX chain
         rather than anything Somfy-protocol-related. For redundancy against
         occasional dropped frames, retransmits instead sends this same,
-        single-frame, same-rolling-code command as several separate clean
-        transmissions (like a real remote's repeats, just without the
-        internal gap this hardware seems to dislike).
+        single-frame, same-rolling-code command as several separate
+        transmissions - but back-to-back async_send_command() calls have no
+        guaranteed gap between them (we don't actually know whether it
+        blocks until the RF waveform finishes playing on the device, or
+        returns as soon as the transmit request is acknowledged), unlike a
+        physical double-press which is naturally spaced by human reaction
+        time. retransmit_delay adds an explicit pause between sends so we
+        aren't relying on that being true.
         """
         data = self._entry.runtime_data
         async with data.lock:
@@ -155,7 +166,9 @@ class SomfyRTSCover(CoverEntity, RestoreEntity):
                 button=button,
                 frame_repeats=frame_repeats,
             )
-            for _ in range(retransmits):
+            for i in range(retransmits):
+                if i > 0:
+                    await asyncio.sleep(retransmit_delay)
                 await async_send_command(
                     self.hass, self._transmitter, command, context=self._context
                 )
