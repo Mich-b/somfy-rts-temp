@@ -10,10 +10,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from homeassistant.components.radio_frequency import async_send_command
 from homeassistant.core import Context, HomeAssistant
 from rf_protocols.codes.somfy.rts import SomfyRTSButton
 from rf_protocols.commands.somfy_rts import SomfyRTSCommand
+
+from .transmitter import async_transmit
 
 # Codes captured from a real pairing/limit-setting sequence on the physical
 # remote (combined presses are the bitwise OR of the individual buttons).
@@ -50,4 +51,15 @@ async def async_send_programming_button(
         button=BUTTON_CODES[button],
         frame_repeats=frame_repeats,
     )
-    await async_send_command(hass, transmitter, command, context=context)
+    # Goes through the shared transmitter lock so pairing can never collide
+    # with normal cover commands on the same RF proxy.
+    async def _build() -> Any:
+        return command
+
+    await async_transmit(
+        hass,
+        transmitter,
+        _build,
+        context=context,
+        description=f"pairing {button} for {address:06X}",
+    )
