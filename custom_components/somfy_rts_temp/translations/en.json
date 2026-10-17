@@ -40,10 +40,12 @@
       },
       "pair_top": {
         "title": "Set the TOP position",
-        "description": "Use Up/Down to jog the blind to the position you want as its fully-open (top) limit. Each press sends one command, so use it like a real remote's buttons. When it's where you want it, choose Confirm.",
+        "description": "Jog the blind to the position you want as its fully-open (top) limit. Use the Fast options to travel continuously for coarse positioning, then the single-step Up/Down to fine-tune. When it's where you want it, choose Confirm.",
         "menu_options": {
-          "pair_top_up": "⬆️ Up",
-          "pair_top_down": "⬇️ Down",
+          "pair_top_down_fast": "⏬ Down (fast)",
+          "pair_top_up_fast": "⏫ Up (fast)",
+          "pair_top_down": "⬇️ Down (step)",
+          "pair_top_up": "⬆️ Up (step)",
           "pair_bottom": "✅ Confirm - this is my TOP position"
         }
       },

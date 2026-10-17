@@ -20,6 +20,11 @@ from homeassistant.helpers.selector import EntitySelector, EntitySelectorConfig
 from .const import CONF_ADDRESS, CONF_COUNTER, CONF_TRANSMITTER, DEFAULT_NAME, DOMAIN, FREQUENCY
 from .programming import async_send_programming_button
 
+# Extra repeat frames for a "fast" jog: simulates holding the button so the
+# motor travels continuously instead of a single tiny step, for coarse
+# positioning before fine-tuning with the single-tap Up/Down options.
+_FAST_JOG_FRAME_REPEATS = 10
+
 
 class SomfyRTSConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Somfy RTS."""
@@ -179,7 +184,13 @@ class SomfyRTSConfigFlow(ConfigFlow, domain=DOMAIN):
         """Jog with Up/Down until the blind is at the desired top position."""
         return self.async_show_menu(
             step_id="pair_top",
-            menu_options=["pair_top_up", "pair_top_down", "pair_bottom"],
+            menu_options=[
+                "pair_top_down_fast",
+                "pair_top_up_fast",
+                "pair_top_down",
+                "pair_top_up",
+                "pair_bottom",
+            ],
         )
 
     async def async_step_pair_top_up(
@@ -194,6 +205,20 @@ class SomfyRTSConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Jog down once, then return to the top-jog menu."""
         await self._async_send("down")
+        return await self.async_step_pair_top()
+
+    async def async_step_pair_top_up_fast(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Long-press up (continuous travel), then return to the top-jog menu."""
+        await self._async_send("up", frame_repeats=_FAST_JOG_FRAME_REPEATS)
+        return await self.async_step_pair_top()
+
+    async def async_step_pair_top_down_fast(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Long-press down (continuous travel), then return to the top-jog menu."""
+        await self._async_send("down", frame_repeats=_FAST_JOG_FRAME_REPEATS)
         return await self.async_step_pair_top()
 
     async def async_step_pair_bottom(
