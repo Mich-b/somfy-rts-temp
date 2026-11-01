@@ -34,8 +34,18 @@
         "title": "Registering with the motor",
         "description": "Sending the Up+Down signal now. The blind should briefly jog up and down as confirmation that it's registering this new remote.\n\nDidn't jog? Make sure it's still in pairing mode (redo the long reset-button press if needed), then choose Retry.",
         "menu_options": {
-          "pair_top": "Continue",
+          "pair_direction": "Continue",
           "pair_register": "Retry - resend the signal"
+        }
+      },
+      "pair_direction": {
+        "title": "Check the rotation direction",
+        "description": "Before setting limits, make sure Up means up. Choose Test (Up) and watch the blind: if it rises, the direction is correct - choose Continue. If it goes down, choose Reverse direction, then Test again to confirm it now rises. Use Stop if you need to halt the motor between tests.",
+        "menu_options": {
+          "pair_direction_test": "⬆️ Test - press Up",
+          "pair_direction_stop": "🛑 Stop",
+          "pair_direction_reverse": "🔄 Reverse direction - Up went the wrong way",
+          "pair_top": "✅ Direction is correct - continue"
         }
       },
       "pair_top": {

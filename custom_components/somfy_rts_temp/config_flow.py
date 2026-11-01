@@ -119,8 +119,13 @@ class SomfyRTSConfigFlow(ConfigFlow, domain=DOMAIN):
     #
     # Registers Home Assistant as a new remote and walks through setting a
     # motor's travel limits, mirroring a captured real pairing sequence:
-    #   up+down -> jog to TOP -> my+down -> jog/stop at BOTTOM
-    #   -> my+up (back to TOP) -> long-press my -> prog
+    #   up+down -> check/reverse direction -> jog to TOP -> my+down
+    #   -> jog/stop at BOTTOM -> my+up (back to TOP) -> long-press my -> prog
+    #
+    # The direction check mirrors the motor manual's "Checking the rotation
+    # direction" step, which happens after preprogramming (up+down) and
+    # before the end limits are set: in that temporary state a long My press
+    # reverses the motor's rotation, so "Up" means up.
     #
     # Every step here is a menu: each option is its own async_step_* that
     # sends one command and either loops back to the same menu (jogging,
@@ -175,8 +180,52 @@ class SomfyRTSConfigFlow(ConfigFlow, domain=DOMAIN):
         await self._async_send("up_down")
         return self.async_show_menu(
             step_id="pair_register",
-            menu_options=["pair_top", "pair_register"],
+            menu_options=["pair_direction", "pair_register"],
         )
+
+    async def async_step_pair_direction(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Check and, if needed, reverse the motor's rotation direction.
+
+        Done after preprogramming (Up+Down) and before setting limits, per
+        the motor manual's "Checking the rotation direction" step: press Up
+        to see which way it turns; if Up moves the blind down, reverse.
+        """
+        return self.async_show_menu(
+            step_id="pair_direction",
+            menu_options=[
+                "pair_direction_test",
+                "pair_direction_stop",
+                "pair_direction_reverse",
+                "pair_top",
+            ],
+        )
+
+    async def async_step_pair_direction_test(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Send Up to check which way the motor turns, then return to menu."""
+        await self._async_send("up")
+        return await self.async_step_pair_direction()
+
+    async def async_step_pair_direction_stop(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Stop the motor (short My) after a direction test, then return."""
+        await self._async_send("my")
+        return await self.async_step_pair_direction()
+
+    async def async_step_pair_direction_reverse(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Long-press My to reverse the rotation direction, then return.
+
+        A long My press (6 total frames) in the preprogrammed state flips the
+        motor direction; re-test with Up to confirm before continuing.
+        """
+        await self._async_send("my", frame_repeats=5)
+        return await self.async_step_pair_direction()
 
     async def async_step_pair_top(
         self, user_input: dict[str, Any] | None = None
